@@ -3,8 +3,11 @@ const routes = [
     path: '/',
     component: () => import('@/layouts/MainLayout.vue'),
     children: [
-      { path: '', component: () => import('@/pages/IndexPage.vue') },
-      { path: 'second', component: () => import('@/pages/SecondPage.vue') }
+      { path: '', redirect: '/livros' },
+      { path: 'livros', component: () => import('@/pages/LivrosPage.vue') },
+      { path: 'autores', component: () => import('@/pages/AutoresPage.vue') },
+      { path: 'usuarios', component: () => import('@/pages/UsuariosPage.vue') },
+      { path: 'emprestimos', component: () => import('@/pages/EmprestimosPage.vue') }
     ]
   },
 
