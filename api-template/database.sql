@@ -1,9 +1,3 @@
--- Script do banco da Biblioteca
--- Rode no banco TRABALHO_LPV (o mesmo do .env), por exemplo:
---   psql -U postgres -d TRABALHO_LPV -f database.sql
--- Pode rodar mais de uma vez: as tabelas só são criadas se não existirem
--- e os dados só são inseridos se a tabela estiver vazia.
-
 -- =========================================================
 -- TABELAS
 -- =========================================================
@@ -51,7 +45,7 @@ CREATE TABLE IF NOT EXISTS emprestimos (
 );
 
 -- =========================================================
--- DADOS DE EXEMPLO
+-- DADOS
 -- =========================================================
 
 INSERT INTO categorias (nome)
