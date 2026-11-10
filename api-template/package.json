@@ -3,18 +3,21 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon src/index.js"
+    "dev": "nodemon src/index.js",
+    "teste": "node teste-api.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "API da Biblioteca de livros",
   "dependencies": {
+    "cors": "^2.8.6",
     "dotenv": "^16.4.7",
     "express": "^5.1.0",
     "pg": "^8.14.1"
   },
   "devDependencies": {
+    "axios": "^1.21.1",
     "nodemon": "^3.1.9"
   }
 }

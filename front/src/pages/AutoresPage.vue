@@ -5,15 +5,26 @@
       <q-space />
       <q-btn color="primary" icon="add" label="Cadastrar autor" no-caps @click="abrirCadastro" />
       <q-btn
+        color="secondary"
+        :icon="modoAtualizar ? 'close' : 'edit'"
+        :label="modoAtualizar ? 'Cancelar edição' : 'Editar autor'"
+        :outline="modoAtualizar"
+        no-caps
+        @click="alternarModoAtualizar"
+      />
+      <q-btn
         color="negative"
         :icon="modoExcluir ? 'close' : 'delete'"
         :label="modoExcluir ? 'Cancelar exclusão' : 'Excluir autor'"
         :outline="modoExcluir"
         no-caps
-        @click="modoExcluir = !modoExcluir"
+        @click="alternarModoExcluir"
       />
     </div>
 
+    <q-banner v-if="modoAtualizar" dense class="bg-blue-1 text-primary q-mb-md">
+      Selecione o autor que deseja editar.
+    </q-banner>
     <q-banner v-if="modoExcluir" dense class="bg-red-1 text-negative q-mb-md">
       Selecione o autor que deseja excluir.
     </q-banner>
@@ -27,7 +38,7 @@
         <q-card
           flat
           bordered
-          :class="{ 'card-excluir': modoExcluir }"
+          :class="{ 'card-atualizar': modoAtualizar, 'card-excluir': modoExcluir }"
           @click="clicarCard(autor)"
         >
           <q-card-section>
@@ -42,7 +53,7 @@
       <q-card style="min-width: 400px">
         <q-form @submit="salvar">
           <q-card-section>
-            <div class="text-h6">Cadastrar autor</div>
+            <div class="text-h6">{{ form.id ? 'Editar autor' : 'Cadastrar autor' }}</div>
           </q-card-section>
 
           <q-card-section class="q-gutter-sm">
@@ -76,6 +87,7 @@ import { api } from '@/boot/axios'
 const $q = useQuasar()
 
 const autores = ref([])
+const modoAtualizar = ref(false)
 const modoExcluir = ref(false)
 const dialogo = ref(false)
 const salvando = ref(false)
@@ -90,9 +102,21 @@ async function carregar() {
   }
 }
 
-// o clique no card só faz algo depois de apertar o botão Excluir
+// o clique no card depende do botão apertado antes (Editar ou Excluir)
 function clicarCard(autor) {
+  if (modoAtualizar.value) abrirAtualizacao(autor)
   if (modoExcluir.value) excluir(autor)
+}
+
+// ligar um modo desliga o outro
+function alternarModoAtualizar() {
+  modoAtualizar.value = !modoAtualizar.value
+  modoExcluir.value = false
+}
+
+function alternarModoExcluir() {
+  modoExcluir.value = !modoExcluir.value
+  modoAtualizar.value = false
 }
 
 function abrirCadastro() {
@@ -100,15 +124,28 @@ function abrirCadastro() {
   dialogo.value = true
 }
 
+// abre o mesmo formulário, já preenchido com o autor clicado
+function abrirAtualizacao(autor) {
+  modoAtualizar.value = false
+  form.value = { id: autor.id, nome: autor.nome, nacionalidade: autor.nacionalidade }
+  dialogo.value = true
+}
+
+// com id no formulário é edição (PUT); sem id é cadastro novo (POST)
 async function salvar() {
   salvando.value = true
   try {
-    await api.post('/autores', form.value)
-    $q.notify({ type: 'positive', message: 'Autor cadastrado!' })
+    if (form.value.id) {
+      await api.put(`/autores/${form.value.id}`, form.value)
+      $q.notify({ type: 'positive', message: 'Autor atualizado!' })
+    } else {
+      await api.post('/autores', form.value)
+      $q.notify({ type: 'positive', message: 'Autor cadastrado!' })
+    }
     dialogo.value = false
     carregar()
   } catch (e) {
-    $q.notify({ type: 'negative', message: e.response?.data?.message || 'Erro ao cadastrar autor' })
+    $q.notify({ type: 'negative', message: e.response?.data?.message || 'Erro ao salvar autor' })
   } finally {
     salvando.value = false
   }
@@ -136,6 +173,13 @@ onMounted(carregar)
 </script>
 
 <style scoped>
+.card-atualizar {
+  cursor: pointer;
+  border-color: var(--q-primary);
+}
+.card-atualizar:hover {
+  background: #e3f2fd;
+}
 .card-excluir {
   cursor: pointer;
   border-color: var(--q-negative);

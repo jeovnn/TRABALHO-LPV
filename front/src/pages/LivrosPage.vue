@@ -5,15 +5,26 @@
       <q-space />
       <q-btn color="primary" icon="add" label="Cadastrar livro" no-caps @click="abrirCadastro" />
       <q-btn
+        color="secondary"
+        :icon="modoAtualizar ? 'close' : 'edit'"
+        :label="modoAtualizar ? 'Cancelar edição' : 'Editar livro'"
+        :outline="modoAtualizar"
+        no-caps
+        @click="alternarModoAtualizar"
+      />
+      <q-btn
         color="negative"
         :icon="modoExcluir ? 'close' : 'delete'"
         :label="modoExcluir ? 'Cancelar exclusão' : 'Excluir livro'"
         :outline="modoExcluir"
         no-caps
-        @click="modoExcluir = !modoExcluir"
+        @click="alternarModoExcluir"
       />
     </div>
 
+    <q-banner v-if="modoAtualizar" dense class="bg-blue-1 text-primary q-mb-md">
+      Selecione o livro que deseja editar.
+    </q-banner>
     <q-banner v-if="modoExcluir" dense class="bg-red-1 text-negative q-mb-md">
       Selecione o livro que deseja excluir.
     </q-banner>
@@ -28,7 +39,7 @@
           flat
           bordered
           class="column items-center q-pa-md"
-          :class="{ 'card-excluir': modoExcluir }"
+          :class="{ 'card-atualizar': modoAtualizar, 'card-excluir': modoExcluir }"
           @click="clicarCard(livro)"
         >
           <q-icon name="menu_book" size="64px" color="primary" />
@@ -44,7 +55,7 @@
       <q-card style="min-width: 400px">
         <q-form @submit="salvar">
           <q-card-section>
-            <div class="text-h6">Cadastrar livro</div>
+            <div class="text-h6">{{ form.id ? 'Editar livro' : 'Cadastrar livro' }}</div>
           </q-card-section>
 
           <q-card-section class="q-gutter-sm">
@@ -62,21 +73,56 @@
                 (v) => (v >= 1000 && v <= anoAtual) || 'Ano inválido'
               ]"
             />
-            <q-input
-              v-model="form.editora"
-              label="Editora"
-              :rules="[(v) => !!v || 'Informe a editora']"
-            />
+            <!-- digitando, sugere as que já existem; nome novo + Enter cadastra na hora -->
             <q-select
-              v-model="form.categoria_id"
-              :options="categorias"
+              v-model="form.editora_id"
+              :options="editorasFiltradas"
               option-value="id"
               option-label="nome"
               emit-value
               map-options
+              use-input
+              input-debounce="0"
+              label="Editora"
+              hide-selected
+              fill-input
+              @filter="filtrarEditoras"
+              @new-value="novaEditora"
+              :rules="[(v) => !!v || 'Informe a editora']"
+            >
+              <template #no-option>
+                <q-item>
+                  <q-item-section class="text-grey">
+                    Nenhuma editora encontrada. Aperte Enter para cadastrar.
+                  </q-item-section>
+                </q-item>
+              </template>
+            </q-select>
+            <!-- digitando, sugere as que já existem; nome novo + Enter cadastra na hora -->
+            <q-select
+              v-model="form.categoria_id"
+              :options="categoriasFiltradas"
+              option-value="id"
+              option-label="nome"
+              emit-value
+              map-options
+              use-input
+              input-debounce="0"
               label="Categoria"
-              :rules="[(v) => !!v || 'Selecione a categoria']"
-            />
+              hide-selected
+              fill-input
+              @filter="filtrarCategorias"
+              @new-value="novaCategoria"
+              :rules="[(v) => !!v || 'Informe a categoria']"
+            >
+              <template #no-option>
+                <q-item>
+                  <q-item-section class="text-grey">
+                    Nenhuma categoria encontrada. Aperte Enter para cadastrar.
+                  </q-item-section>
+                </q-item>
+              </template>
+            </q-select>
           </q-card-section>
 
           <q-card-actions align="right">
@@ -98,11 +144,16 @@ const $q = useQuasar()
 const anoAtual = new Date().getFullYear()
 
 const livros = ref([])
+const modoAtualizar = ref(false)
 const modoExcluir = ref(false)
 const dialogo = ref(false)
 const salvando = ref(false)
 const form = ref({})
 const categorias = ref([])
+const editoras = ref([])
+// listas que aparecem no select enquanto a pessoa digita
+const categoriasFiltradas = ref([])
+const editorasFiltradas = ref([])
 
 // busca os livros cadastrados para montar os cards
 async function carregar() {
@@ -113,9 +164,21 @@ async function carregar() {
   }
 }
 
-// o clique no card só faz algo depois de apertar o botão Excluir
+// o clique no card depende do botão apertado antes (Editar ou Excluir)
 function clicarCard(livro) {
+  if (modoAtualizar.value) abrirAtualizacao(livro)
   if (modoExcluir.value) excluir(livro)
+}
+
+// ligar um modo desliga o outro
+function alternarModoAtualizar() {
+  modoAtualizar.value = !modoAtualizar.value
+  modoExcluir.value = false
+}
+
+function alternarModoExcluir() {
+  modoExcluir.value = !modoExcluir.value
+  modoAtualizar.value = false
 }
 
 function abrirCadastro() {
@@ -123,15 +186,34 @@ function abrirCadastro() {
   dialogo.value = true
 }
 
+// abre o mesmo formulário, já preenchido com o livro clicado
+function abrirAtualizacao(livro) {
+  modoAtualizar.value = false
+  form.value = {
+    id: livro.id,
+    titulo: livro.titulo,
+    ano_publicacao: livro.ano_publicacao,
+    editora_id: livro.editora_id,
+    categoria_id: livro.categoria_id
+  }
+  dialogo.value = true
+}
+
+// com id no formulário é edição (PUT); sem id é cadastro novo (POST)
 async function salvar() {
   salvando.value = true
   try {
-    await api.post('/livros', form.value)
-    $q.notify({ type: 'positive', message: 'Livro cadastrado!' })
+    if (form.value.id) {
+      await api.put(`/livros/${form.value.id}`, form.value)
+      $q.notify({ type: 'positive', message: 'Livro atualizado!' })
+    } else {
+      await api.post('/livros', form.value)
+      $q.notify({ type: 'positive', message: 'Livro cadastrado!' })
+    }
     dialogo.value = false
     carregar()
   } catch (e) {
-    $q.notify({ type: 'negative', message: e.response?.data?.message || 'Erro ao cadastrar livro' })
+    $q.notify({ type: 'negative', message: e.response?.data?.message || 'Erro ao salvar livro' })
   } finally {
     salvando.value = false
   }
@@ -155,13 +237,60 @@ function excluir(livro) {
   })
 }
 
-// preenche as opções do select de categoria com o que está no banco
+// preenche as opções dos selects de categoria e editora com o que está no banco
 async function carregarOpcoes() {
   try {
     categorias.value = (await api.get('/categorias')).data.data
+    editoras.value = (await api.get('/editoras')).data.data
+    categoriasFiltradas.value = categorias.value
+    editorasFiltradas.value = editoras.value
   } catch {
-    $q.notify({ type: 'warning', message: 'Não foi possível carregar as categorias' })
+    $q.notify({ type: 'warning', message: 'Não foi possível carregar categorias e editoras' })
   }
+}
+
+// mostra só as opções que contêm o texto digitado
+function filtrar(texto, lista) {
+  const busca = texto.toLowerCase()
+  return lista.filter((item) => item.nome.toLowerCase().includes(busca))
+}
+
+function filtrarEditoras(texto, update) {
+  update(() => (editorasFiltradas.value = filtrar(texto, editoras.value)))
+}
+
+function filtrarCategorias(texto, update) {
+  update(() => (categoriasFiltradas.value = filtrar(texto, categorias.value)))
+}
+
+// quando a pessoa digita um nome e aperta Enter:
+// se já existe com esse nome, só seleciona; se não, cadastra na API e seleciona
+async function adicionarOpcao(nome, done, lista, filtradas, rota, rotulo) {
+  nome = nome.trim()
+  if (!nome) return done()
+  const existente = lista.value.find((item) => item.nome.toLowerCase() === nome.toLowerCase())
+  if (existente) {
+    filtradas.value = lista.value
+    return done(existente.id, 'add-unique')
+  }
+  try {
+    const nova = (await api.post(rota, { nome })).data.data
+    lista.value.push(nova)
+    filtradas.value = lista.value
+    $q.notify({ type: 'positive', message: `${rotulo} "${nova.nome}" cadastrada!` })
+    done(nova.id, 'add-unique')
+  } catch (e) {
+    $q.notify({ type: 'negative', message: e.response?.data?.message || `Erro ao cadastrar ${rotulo.toLowerCase()}` })
+    done()
+  }
+}
+
+function novaEditora(nome, done) {
+  adicionarOpcao(nome, done, editoras, editorasFiltradas, '/editoras', 'Editora')
+}
+
+function novaCategoria(nome, done) {
+  adicionarOpcao(nome, done, categorias, categoriasFiltradas, '/categorias', 'Categoria')
 }
 
 onMounted(() => {
@@ -171,6 +300,13 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.card-atualizar {
+  cursor: pointer;
+  border-color: var(--q-primary);
+}
+.card-atualizar:hover {
+  background: #e3f2fd;
+}
 .card-excluir {
   cursor: pointer;
   border-color: var(--q-negative);

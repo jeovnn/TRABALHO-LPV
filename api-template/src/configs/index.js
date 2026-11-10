@@ -1,4 +1,7 @@
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
+
+// devolve as colunas DATE como texto 'aaaa-mm-dd' (sem conversão de fuso horário)
+types.setTypeParser(1082, (valor) => valor);
 
 const pool = new Pool({
   user: process.env.POSTGRES_USER,
