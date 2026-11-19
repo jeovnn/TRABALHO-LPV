@@ -36,8 +36,9 @@ Campos enviados no body:
 - **editoras**: `nome`, `contato`
 - **autores**: `nome`, `nacionalidade`
 - **usuarios**: `nome`, `cpf`, `email`, `telefone`
-- **livros**: `titulo`, `ano_publicacao`, `editora_id`, `categoria_id`
+- **livros**: `titulo`, `ano_publicacao`, `editora_id`, `categoria_id`, `autor_id`
 - **emprestimos**: `usuario_id`, `livro_id`, `data_emprestimo`, `data_prevista_devolucao`, `data_devolucao`
   (para registrar a devolução, faça um PUT preenchendo `data_devolucao`)
+  Um livro só pode ter um empréstimo em aberto por vez: emprestar um livro que ainda não foi devolvido retorna erro 400.
 
 Todas as respostas seguem o formato `{ status, message?, data }`.

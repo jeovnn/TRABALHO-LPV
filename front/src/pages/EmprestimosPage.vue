@@ -80,16 +80,29 @@
               label="Usuário"
               :rules="[(v) => !!v || 'Selecione o usuário']"
             />
+            <!-- livros com empréstimo em aberto aparecem desabilitados -->
             <q-select
               v-model="form.livro_id"
               :options="livros"
               option-value="id"
               option-label="titulo"
+              :option-disable="livroIndisponivel"
               emit-value
               map-options
               label="Livro"
               :rules="[(v) => !!v || 'Selecione o livro']"
-            />
+            >
+              <template #option="scope">
+                <q-item v-bind="scope.itemProps">
+                  <q-item-section>
+                    <q-item-label>{{ scope.opt.titulo }}</q-item-label>
+                    <q-item-label v-if="livroIndisponivel(scope.opt)" caption>
+                      Emprestado (aguardando devolução)
+                    </q-item-label>
+                  </q-item-section>
+                </q-item>
+              </template>
+            </q-select>
             <q-input
               v-model="form.data_emprestimo"
               type="date"
@@ -190,6 +203,14 @@ function alternarModoAtualizar() {
 function alternarModoExcluir() {
   modoExcluir.value = !modoExcluir.value
   modoAtualizar.value = false
+}
+
+// um livro está indisponível se tem empréstimo sem devolução
+// (o próprio empréstimo que está sendo editado não conta)
+function livroIndisponivel(livro) {
+  return emprestimos.value.some(
+    (emp) => emp.livro_id === livro.id && !emp.data_devolucao && emp.id !== form.value.id
+  )
 }
 
 function abrirCadastro() {

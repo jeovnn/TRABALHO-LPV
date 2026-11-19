@@ -44,6 +44,7 @@
         >
           <q-icon name="menu_book" size="64px" color="primary" />
           <div class="text-subtitle1 text-center q-mt-sm">{{ livro.titulo }}</div>
+          <div class="text-body2 text-center">{{ livro.autor || 'Autor não informado' }}</div>
           <div class="text-caption text-grey-7 text-center">
             {{ livro.ano_publicacao }} · {{ livro.editora }} · {{ livro.categoria }}
           </div>
@@ -73,6 +74,31 @@
                 (v) => (v >= 1000 && v <= anoAtual) || 'Ano inválido'
               ]"
             />
+            <!-- digitando, sugere os que já existem; nome novo + Enter cadastra na hora -->
+            <q-select
+              v-model="form.autor_id"
+              :options="autoresFiltrados"
+              option-value="id"
+              option-label="nome"
+              emit-value
+              map-options
+              use-input
+              input-debounce="0"
+              label="Autor"
+              hide-selected
+              fill-input
+              @filter="filtrarAutores"
+              @new-value="novoAutor"
+              :rules="[(v) => !!v || 'Informe o autor']"
+            >
+              <template #no-option>
+                <q-item>
+                  <q-item-section class="text-grey">
+                    Nenhum autor encontrado. Aperte Enter para cadastrar.
+                  </q-item-section>
+                </q-item>
+              </template>
+            </q-select>
             <!-- digitando, sugere as que já existem; nome novo + Enter cadastra na hora -->
             <q-select
               v-model="form.editora_id"
@@ -151,9 +177,11 @@ const salvando = ref(false)
 const form = ref({})
 const categorias = ref([])
 const editoras = ref([])
+const autores = ref([])
 // listas que aparecem no select enquanto a pessoa digita
 const categoriasFiltradas = ref([])
 const editorasFiltradas = ref([])
+const autoresFiltrados = ref([])
 
 // busca os livros cadastrados para montar os cards
 async function carregar() {
@@ -194,7 +222,8 @@ function abrirAtualizacao(livro) {
     titulo: livro.titulo,
     ano_publicacao: livro.ano_publicacao,
     editora_id: livro.editora_id,
-    categoria_id: livro.categoria_id
+    categoria_id: livro.categoria_id,
+    autor_id: livro.autor_id
   }
   dialogo.value = true
 }
@@ -237,15 +266,17 @@ function excluir(livro) {
   })
 }
 
-// preenche as opções dos selects de categoria e editora com o que está no banco
+// preenche as opções dos selects de autor, categoria e editora com o que está no banco
 async function carregarOpcoes() {
   try {
+    autores.value = (await api.get('/autores')).data.data
     categorias.value = (await api.get('/categorias')).data.data
     editoras.value = (await api.get('/editoras')).data.data
+    autoresFiltrados.value = autores.value
     categoriasFiltradas.value = categorias.value
     editorasFiltradas.value = editoras.value
   } catch {
-    $q.notify({ type: 'warning', message: 'Não foi possível carregar categorias e editoras' })
+    $q.notify({ type: 'warning', message: 'Não foi possível carregar autores, categorias e editoras' })
   }
 }
 
@@ -253,6 +284,10 @@ async function carregarOpcoes() {
 function filtrar(texto, lista) {
   const busca = texto.toLowerCase()
   return lista.filter((item) => item.nome.toLowerCase().includes(busca))
+}
+
+function filtrarAutores(texto, update) {
+  update(() => (autoresFiltrados.value = filtrar(texto, autores.value)))
 }
 
 function filtrarEditoras(texto, update) {
@@ -265,7 +300,7 @@ function filtrarCategorias(texto, update) {
 
 // quando a pessoa digita um nome e aperta Enter:
 // se já existe com esse nome, só seleciona; se não, cadastra na API e seleciona
-async function adicionarOpcao(nome, done, lista, filtradas, rota, rotulo) {
+async function adicionarOpcao(nome, done, lista, filtradas, rota, rotulo, cadastrado = 'cadastrada') {
   nome = nome.trim()
   if (!nome) return done()
   const existente = lista.value.find((item) => item.nome.toLowerCase() === nome.toLowerCase())
@@ -277,12 +312,16 @@ async function adicionarOpcao(nome, done, lista, filtradas, rota, rotulo) {
     const nova = (await api.post(rota, { nome })).data.data
     lista.value.push(nova)
     filtradas.value = lista.value
-    $q.notify({ type: 'positive', message: `${rotulo} "${nova.nome}" cadastrada!` })
+    $q.notify({ type: 'positive', message: `${rotulo} "${nova.nome}" ${cadastrado}!` })
     done(nova.id, 'add-unique')
   } catch (e) {
     $q.notify({ type: 'negative', message: e.response?.data?.message || `Erro ao cadastrar ${rotulo.toLowerCase()}` })
     done()
   }
+}
+
+function novoAutor(nome, done) {
+  adicionarOpcao(nome, done, autores, autoresFiltrados, '/autores', 'Autor', 'cadastrado')
 }
 
 function novaEditora(nome, done) {

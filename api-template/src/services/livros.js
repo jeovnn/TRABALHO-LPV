@@ -1,13 +1,15 @@
 const db = require('../configs');
 
-// traz o nome da editora e da categoria junto com o livro
+// traz o nome do autor, da editora e da categoria junto com o livro
 const SELECT_LIVROS = `
   SELECT l.id, l.titulo, l.ano_publicacao,
          l.editora_id, e.nome AS editora,
-         l.categoria_id, c.nome AS categoria
+         l.categoria_id, c.nome AS categoria,
+         l.autor_id, a.nome AS autor
   FROM livros l
   LEFT JOIN editoras e ON e.id = l.editora_id
   LEFT JOIN categorias c ON c.id = l.categoria_id
+  LEFT JOIN autores a ON a.id = l.autor_id
 `;
 
 const listar = async () => {
@@ -20,16 +22,18 @@ const buscarPorId = async (id) => {
   return db.query(sql, [id]).then(response => response.rows[0]);
 };
 
-const criar = async ({ titulo, ano_publicacao, editora_id, categoria_id }) => {
-  const sql = `INSERT INTO livros (titulo, ano_publicacao, editora_id, categoria_id)
-               VALUES ($1, $2, $3, $4) RETURNING *`;
-  return db.query(sql, [titulo, ano_publicacao, editora_id, categoria_id]).then(response => response.rows[0]);
+const criar = async ({ titulo, ano_publicacao, editora_id, categoria_id, autor_id }) => {
+  const sql = `INSERT INTO livros (titulo, ano_publicacao, editora_id, categoria_id, autor_id)
+               VALUES ($1, $2, $3, $4, $5) RETURNING *`;
+  const params = [titulo, ano_publicacao, editora_id, categoria_id, autor_id || null];
+  return db.query(sql, params).then(response => response.rows[0]);
 };
 
-const atualizar = async (id, { titulo, ano_publicacao, editora_id, categoria_id }) => {
-  const sql = `UPDATE livros SET titulo = $1, ano_publicacao = $2, editora_id = $3, categoria_id = $4
-               WHERE id = $5 RETURNING *`;
-  return db.query(sql, [titulo, ano_publicacao, editora_id, categoria_id, id]).then(response => response.rows[0]);
+const atualizar = async (id, { titulo, ano_publicacao, editora_id, categoria_id, autor_id }) => {
+  const sql = `UPDATE livros SET titulo = $1, ano_publicacao = $2, editora_id = $3, categoria_id = $4, autor_id = $5
+               WHERE id = $6 RETURNING *`;
+  const params = [titulo, ano_publicacao, editora_id, categoria_id, autor_id || null, id];
+  return db.query(sql, params).then(response => response.rows[0]);
 };
 
 const excluir = async (id) => {

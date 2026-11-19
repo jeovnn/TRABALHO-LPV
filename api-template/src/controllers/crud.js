@@ -11,6 +11,12 @@ const tratarErro = (res, error) => {
       message: 'Registro vinculado a outro cadastro (verifique os códigos informados ou se ele está em uso)'
     });
   }
+  if (error.constraint === 'emprestimo_aberto_por_livro') {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Este livro já está emprestado. Registre a devolução antes de emprestá-lo de novo'
+    });
+  }
   if (error.code === '23505') {
     return res.status(400).json({ status: 'error', message: 'Já existe um cadastro com esses dados' });
   }

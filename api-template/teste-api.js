@@ -19,14 +19,15 @@ async function testar() {
   })).data.data;
   mostrar('Cadastrados', { categoria, editora, autor, usuario });
 
-  // livro usa editora e categoria
+  // livro usa autor, editora e categoria
   const livro = (await api.post('/livros', {
     titulo: 'Dom Casmurro',
     ano_publicacao: 1899,
     editora_id: editora.id,
-    categoria_id: categoria.id
+    categoria_id: categoria.id,
+    autor_id: autor.id
   })).data.data;
-  mostrar('Livro (com nome da editora e categoria)', (await api.get(`/livros/${livro.id}`)).data.data);
+  mostrar('Livro (com nome do autor, editora e categoria)', (await api.get(`/livros/${livro.id}`)).data.data);
 
   // empréstimo usa usuário e livro
   const emprestimo = (await api.post('/emprestimos', {
@@ -34,6 +35,15 @@ async function testar() {
     livro_id: livro.id,
     data_prevista_devolucao: '2026-12-01'
   })).data.data;
+
+  // erro esperado: o mesmo livro não pode ser emprestado de novo antes da devolução
+  try {
+    await api.post('/emprestimos', { usuario_id: usuario.id, livro_id: livro.id, data_prevista_devolucao: '2026-12-01' });
+    throw new Error('A API deixou emprestar um livro que já estava emprestado');
+  } catch (e) {
+    if (!e.response) throw e;
+    mostrar(`Erro esperado (${e.response.status})`, e.response.data);
+  }
 
   // devolução = atualizar o empréstimo preenchendo data_devolucao
   await api.put(`/emprestimos/${emprestimo.id}`, { ...emprestimo, data_devolucao: '2026-11-20' });

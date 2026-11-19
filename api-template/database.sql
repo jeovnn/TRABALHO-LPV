@@ -24,8 +24,12 @@ CREATE TABLE IF NOT EXISTS livros (
   titulo VARCHAR(150) NOT NULL,
   ano_publicacao INTEGER,
   editora_id INTEGER REFERENCES editoras(id),
-  categoria_id INTEGER REFERENCES categorias(id)
+  categoria_id INTEGER REFERENCES categorias(id),
+  autor_id INTEGER REFERENCES autores(id)
 );
+
+-- para bancos criados antes do autor existir no livro
+ALTER TABLE livros ADD COLUMN IF NOT EXISTS autor_id INTEGER REFERENCES autores(id);
 
 CREATE TABLE IF NOT EXISTS usuarios (
   id SERIAL PRIMARY KEY,
@@ -43,6 +47,10 @@ CREATE TABLE IF NOT EXISTS emprestimos (
   data_prevista_devolucao DATE NOT NULL,
   data_devolucao DATE
 );
+
+-- um livro só pode ter um empréstimo em aberto (sem data de devolução) por vez
+CREATE UNIQUE INDEX IF NOT EXISTS emprestimo_aberto_por_livro
+  ON emprestimos (livro_id) WHERE data_devolucao IS NULL;
 
 -- =========================================================
 -- DADOS
@@ -81,21 +89,22 @@ SELECT * FROM (VALUES
 ) AS v(nome, nacionalidade)
 WHERE NOT EXISTS (SELECT 1 FROM autores);
 
--- editora e categoria são buscadas pelo nome, para não depender dos ids gerados
-INSERT INTO livros (titulo, ano_publicacao, editora_id, categoria_id)
-SELECT v.titulo, v.ano, e.id, c.id
+-- autor, editora e categoria são buscados pelo nome, para não depender dos ids gerados
+INSERT INTO livros (titulo, ano_publicacao, editora_id, categoria_id, autor_id)
+SELECT v.titulo, v.ano, e.id, c.id, a.id
 FROM (VALUES
-  ('Dom Casmurro', 1899, 'Companhia das Letras', 'Romance'),
-  ('A Hora da Estrela', 1977, 'Rocco', 'Romance'),
-  ('1984', 1949, 'Companhia das Letras', 'Ficção científica'),
-  ('Eu, Robô', 1950, 'Aleph', 'Ficção científica'),
-  ('Fundação', 1951, 'Aleph', 'Ficção científica'),
-  ('O Hobbit', 1937, 'Intrínseca', 'Fantasia'),
-  ('Sapiens: Uma Breve História da Humanidade', 2011, 'Companhia das Letras', 'História'),
-  ('Código Limpo', 2008, 'Novatec', 'Tecnologia')
-) AS v(titulo, ano, editora, categoria)
+  ('Dom Casmurro', 1899, 'Companhia das Letras', 'Romance', 'Machado de Assis'),
+  ('A Hora da Estrela', 1977, 'Rocco', 'Romance', 'Clarice Lispector'),
+  ('1984', 1949, 'Companhia das Letras', 'Ficção científica', 'George Orwell'),
+  ('Eu, Robô', 1950, 'Aleph', 'Ficção científica', 'Isaac Asimov'),
+  ('Fundação', 1951, 'Aleph', 'Ficção científica', 'Isaac Asimov'),
+  ('O Hobbit', 1937, 'Intrínseca', 'Fantasia', 'J. R. R. Tolkien'),
+  ('Sapiens: Uma Breve História da Humanidade', 2011, 'Companhia das Letras', 'História', 'Yuval Noah Harari'),
+  ('Código Limpo', 2008, 'Novatec', 'Tecnologia', 'Robert C. Martin')
+) AS v(titulo, ano, editora, categoria, autor)
 JOIN editoras e ON e.nome = v.editora
 JOIN categorias c ON c.nome = v.categoria
+JOIN autores a ON a.nome = v.autor
 WHERE NOT EXISTS (SELECT 1 FROM livros);
 
 -- dados fictícios
